@@ -2,6 +2,13 @@
 
 WG_CONF="/etc/wireguard/wg0.conf"
 
+check_root() {
+  if [[ $(id -u) -ne 0 ]]; then
+    echo "This script must be run as root. Please try again with 'sudo' or log in as the root user."
+    exit 1
+  fi
+}
+
 install_wireguard() {
   if ! command -v wg > /dev/null || ! command -v wg-quick > /dev/null; then
     echo "Installing Wireguard and required tools..."
@@ -205,6 +212,7 @@ ensureIpForwardingSnapinsExist() {
 }
 
 main() {
+  check_root
   install_wireguard
   configure_interface
   add_peers
