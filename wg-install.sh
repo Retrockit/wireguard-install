@@ -165,12 +165,51 @@ check_ufw() {
   fi
 }
 
+ensureIpForwardingSnapinsExist() {
+    local ipv4_file="/etc/sysctl.d/10-ipv4-forwarding.conf"
+    local ipv6_file="/etc/sysctl.d/10-ipv6-forwarding.conf"
+    local ipv4_content="net.ipv4.ip_forward=1"
+    local ipv6_content="net.ipv6.conf.all.forwarding=1"
+
+    # Check if both snap-in files already exist
+    if [ -f "$ipv4_file" ] && [ -f "$ipv6_file" ]; then
+        echo "Both IP forwarding snap-in files already exist. No action required."
+        return 0
+    fi
+
+    # Function to create a snap-in file if it doesn't exist
+    create_snapin_file() {
+        local file_path="$1"
+        local content="$2"
+
+        if [ ! -f "$file_path" ]; then
+            echo "Creating $file_path..."
+            echo "$content" | sudo tee "$file_path" > /dev/null
+
+            if [ $? -eq 0 ]; then
+                echo "$file_path created successfully."
+            else
+                echo "Failed to create $file_path."
+                exit 1
+            fi
+        fi
+    }
+
+    create_snapin_file "$ipv4_file" "$ipv4_content"
+    create_snapin_file "$ipv6_file" "$ipv6_content"
+
+    echo "Reloading sysctl settings..."
+    sudo sysctl --system
+
+    echo "IP forwarding snap-in file creation and sysctl reload completed."
+}
 
 main() {
   install_wireguard
   configure_interface
   add_peers
   check_ufw
+  ensureIpForwardingSnapinsExist
   echo "Wireguard configuration completed. Review $WG_CONF and adjust as necessary."
   echo "Reload Wireguard with 'wg-quick down wg0 && wg-quick up wg0' to apply changes."
   echo "To start Wireguard on boot, run 'sudo systemctl enable wg-quick@wg0'."
